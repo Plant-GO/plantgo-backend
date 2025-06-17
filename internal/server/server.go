@@ -10,6 +10,7 @@ import (
 	_ "github.com/joho/godotenv/autoload"
 
 	"plantgo-backend/internal/database"
+	_ "plantgo-backend/cmd/api/docs"
 )
 
 type Server struct {
@@ -18,22 +19,20 @@ type Server struct {
 	db database.Service
 }
 
-func NewServer() *http.Server {
+func NewServer() *Server {
 	port, _ := strconv.Atoi(os.Getenv("PORT"))
-	NewServer := &Server{
+	return &Server{
 		port: port,
-
-		db: database.New(),
+		db:   database.New(),
 	}
+}
 
-	// Declare Server config
-	server := &http.Server{
-		Addr:         fmt.Sprintf(":%d", NewServer.port),
-		Handler:      NewServer.RegisterRoutes(),
+func (s *Server) HttpServer() *http.Server {
+	return &http.Server{
+		Addr:         fmt.Sprintf(":%d", s.port),
+		Handler:      s.RegisterRoutes(),
 		IdleTimeout:  time.Minute,
 		ReadTimeout:  10 * time.Second,
 		WriteTimeout: 30 * time.Second,
 	}
-
-	return server
 }

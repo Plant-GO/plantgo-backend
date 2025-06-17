@@ -16,12 +16,16 @@ services:
       BLUEPRINT_DB_USERNAME: ${BLUEPRINT_DB_USERNAME}
       BLUEPRINT_DB_PASSWORD: ${BLUEPRINT_DB_PASSWORD}
       BLUEPRINT_DB_SCHEMA: ${BLUEPRINT_DB_SCHEMA}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
+      GOOGLE_REDIRECT_URL: ${GOOGLE_REDIRECT_URL}
+      JWT_SECRET: ${JWT_SECRET}
     depends_on:
-      psql_bp:
+      plantgo_postgres:
         condition: service_healthy
     networks:
       - blueprint
-  psql_bp:
+  plantgo_postgres:
     image: postgres:latest
     restart: unless-stopped
     environment:
