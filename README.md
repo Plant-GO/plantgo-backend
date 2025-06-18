@@ -53,6 +53,13 @@ Clean up binary from the last build:
 make clean
 ```
 
+## Swagger UI for API Documentation
+
+Test the API endpoints here :
+```bash
+http://localhost:8080/swagger/index.html
+```
+
 ## Wanna interact with db ?
 
 Connect to db
