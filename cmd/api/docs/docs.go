@@ -823,6 +823,29 @@ const docTemplate = `{
                     }
                 }
             }
+        },
+        "/scan/video": {
+            "get": {
+                "description": "WebSocket endpoint for real-time video frame processing",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Scanner"
+                ],
+                "summary": "Process live video stream",
+                "responses": {
+                    "101": {
+                        "description": "Switching Protocols",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {

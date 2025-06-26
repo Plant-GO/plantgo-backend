@@ -742,4 +742,19 @@ paths:
       summary: Process scanned image
       tags:
       - Scanner
+  /scan/video:
+    get:
+      consumes:
+      - application/json
+      description: WebSocket endpoint for real-time video frame processing
+      produces:
+      - application/json
+      responses:
+        "101":
+          description: Switching Protocols
+          schema:
+            type: string
+      summary: Process live video stream
+      tags:
+      - Scanner
 swagger: "2.0"

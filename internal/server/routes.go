@@ -42,6 +42,9 @@ func (s *Server) RegisterRoutes() http.Handler {
 
 	r.POST("/scan/image", scanService.ScanImageHandler)
 
+	// WebSocket endpoint for video streaming
+	r.GET("/scan/video", scanService.ScanVideoHandler)
+
 	// Protected routes
 	authorized := r.Group("/")
 	// authorized.Use(AuthMiddleware()) // Uncomment when you have auth middleware
