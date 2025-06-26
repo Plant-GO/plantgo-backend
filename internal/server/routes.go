@@ -7,9 +7,11 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/swaggo/files"
 	"github.com/swaggo/gin-swagger"
-	_ "plantgo-backend/cmd/api/docs" 
+	_ "plantgo-backend/cmd/api/docs"
 	"plantgo-backend/internal/database"
 	"plantgo-backend/internal/modules/auth"
+	"plantgo-backend/internal/modules/level"
+	"plantgo-backend/internal/modules/plant"
 )
 
 func (s *Server) RegisterRoutes() http.Handler {
@@ -29,6 +31,8 @@ func (s *Server) RegisterRoutes() http.Handler {
 	r.GET("/health", s.healthHandler)
 
 	authService := auth.NewAuthService(database.NewGormDB())
+	scanService := plant.NewScanService()
+	plantService := level.NewPlantService(database.NewGormDB())
 
 	r.GET("/auth/google/login", authService.GoogleLoginHandler)
 	r.GET("/auth/google/callback", authService.GoogleCallbackHandler)
@@ -36,10 +40,34 @@ func (s *Server) RegisterRoutes() http.Handler {
 	r.POST("/auth/register", authService.RegisterHandler)
 	r.POST("/auth/login", authService.LoginHandler)
 
+	r.POST("/scan/image", scanService.ScanImageHandler)
+
+	// Protected routes
 	authorized := r.Group("/")
-	// authorized.Use(AuthMiddleware())
+	// authorized.Use(AuthMiddleware()) // Uncomment when you have auth middleware
 	{
+		// User profile
 		authorized.GET("/profile", authService.GetProfileHandler)
+
+		// Game routes (user-facing)
+		gameGroup := authorized.Group("/game")
+		{
+			gameGroup.GET("/data", plantService.GetGameDataHandler)
+			gameGroup.GET("/level/:id", plantService.GetLevelDetailsHandler)
+			gameGroup.POST("/submit-answer", plantService.SubmitAnswerHandler)
+			gameGroup.GET("/rewards", plantService.GetUserRewardHandler)
+		}
+
+		// Admin routes (level management)
+		adminGroup := authorized.Group("/admin")
+		// adminGroup.Use(AdminMiddleware()) // Add admin middleware when available
+		{
+			adminGroup.POST("/levels", plantService.CreateLevelHandler)
+			adminGroup.GET("/levels", plantService.GetAllLevelsHandler)
+			adminGroup.GET("/levels/:id", plantService.GetLevelByIDHandler)
+			adminGroup.PUT("/levels/:id", plantService.UpdateLevelHandler)
+			adminGroup.DELETE("/levels/:id", plantService.DeleteLevelHandler)
+		}
 	}
 
 	return r

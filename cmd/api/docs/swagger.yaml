@@ -7,10 +7,61 @@ definitions:
       user:
         $ref: '#/definitions/infrastructure.User'
     type: object
+  dto.CreateLevelRequest:
+    properties:
+      plant_name:
+        maxLength: 255
+        minLength: 2
+        type: string
+      reward:
+        minimum: 1
+        type: integer
+      riddle:
+        maxLength: 500
+        minLength: 10
+        type: string
+    required:
+    - plant_name
+    - reward
+    - riddle
+    type: object
   dto.ErrorResponse:
     properties:
       error:
         type: string
+    type: object
+  dto.GameDataResponse:
+    properties:
+      completed_levels:
+        type: integer
+      levels:
+        items:
+          $ref: '#/definitions/dto.GameLevelData'
+        type: array
+      total_levels:
+        type: integer
+      user_reward:
+        properties:
+          id:
+            type: integer
+          level_reached:
+            type: integer
+          total_rewards:
+            type: integer
+          user_id:
+            type: integer
+        type: object
+    type: object
+  dto.GameLevelData:
+    properties:
+      id:
+        type: integer
+      is_completed:
+        type: boolean
+      is_unlocked:
+        type: boolean
+      reward:
+        type: integer
     type: object
   dto.GuestLoginRequest:
     properties:
@@ -21,6 +72,41 @@ definitions:
     required:
     - android_id
     - username
+    type: object
+  dto.LevelDetailsResponse:
+    properties:
+      id:
+        type: integer
+      plant_name:
+        type: string
+      reward:
+        type: integer
+      riddle:
+        type: string
+    type: object
+  dto.LevelListResponse:
+    properties:
+      levels:
+        items:
+          $ref: '#/definitions/dto.LevelResponse'
+        type: array
+      total:
+        type: integer
+    type: object
+  dto.LevelResponse:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: integer
+      plant_name:
+        type: string
+      reward:
+        type: integer
+      riddle:
+        type: string
+      updated_at:
+        type: string
     type: object
   dto.LoginRequest:
     properties:
@@ -45,6 +131,68 @@ definitions:
     - email
     - password
     - username
+    type: object
+  dto.SubmitAnswerRequest:
+    properties:
+      answer:
+        maxLength: 255
+        minLength: 1
+        type: string
+      level_id:
+        type: integer
+    required:
+    - answer
+    - level_id
+    type: object
+  dto.SubmitAnswerResponse:
+    properties:
+      correct_answer:
+        type: string
+      is_correct:
+        type: boolean
+      level_completed:
+        type: boolean
+      message:
+        type: string
+      reward_gained:
+        type: integer
+      total_rewards:
+        type: integer
+    type: object
+  dto.SuccessResponse:
+    properties:
+      data: {}
+      message:
+        type: string
+    type: object
+  dto.UpdateLevelRequest:
+    properties:
+      plant_name:
+        maxLength: 255
+        minLength: 2
+        type: string
+      reward:
+        minimum: 1
+        type: integer
+      riddle:
+        maxLength: 500
+        minLength: 10
+        type: string
+    type: object
+  dto.UserRewardResponse:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: integer
+      level_reached:
+        type: integer
+      total_rewards:
+        type: integer
+      updated_at:
+        type: string
+      user_id:
+        type: integer
     type: object
   infrastructure.User:
     properties:
@@ -91,6 +239,177 @@ paths:
       summary: Hello World
       tags:
       - Utility
+  /admin/levels:
+    get:
+      description: Retrieves all plant identification levels
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.LevelListResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Get all levels (Admin)
+      tags:
+      - Admin
+    post:
+      consumes:
+      - application/json
+      description: Creates a new plant identification level
+      parameters:
+      - description: Level data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.CreateLevelRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/dto.LevelResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Create a new level (Admin)
+      tags:
+      - Admin
+  /admin/levels/{id}:
+    delete:
+      description: Deletes an existing level
+      parameters:
+      - description: Level ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.SuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Delete a level (Admin)
+      tags:
+      - Admin
+    get:
+      description: Retrieves a specific level by its ID
+      parameters:
+      - description: Level ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.LevelResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Get level by ID (Admin)
+      tags:
+      - Admin
+    put:
+      consumes:
+      - application/json
+      description: Updates an existing level
+      parameters:
+      - description: Level ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Updated level data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.UpdateLevelRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.LevelResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Update a level (Admin)
+      tags:
+      - Admin
   /auth/google/callback:
     get:
       description: Processes the OAuth2 callback from Google and returns a JWT token
@@ -234,6 +553,124 @@ paths:
       summary: Register a new user
       tags:
       - Auth
+  /game/data:
+    get:
+      description: Returns user's game progress, completed levels, level reached,
+        and all levels with their status
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.GameDataResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Get game data for user
+      tags:
+      - Game
+  /game/level/{id}:
+    get:
+      description: Returns the riddle and plant name for a specific level when user
+        clicks on it
+      parameters:
+      - description: Level ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.LevelDetailsResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Get level details
+      tags:
+      - Game
+  /game/rewards:
+    get:
+      description: Returns user's total rewards and level reached
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.UserRewardResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Get user reward details
+      tags:
+      - Game
+  /game/submit-answer:
+    post:
+      consumes:
+      - application/json
+      description: Submits user's answer for a level and returns result with reward
+        if correct
+      parameters:
+      - description: Answer submission
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.SubmitAnswerRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.SubmitAnswerResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Submit answer for a level
+      tags:
+      - Game
   /health:
     get:
       description: Returns database and service health
@@ -271,4 +708,38 @@ paths:
       summary: Get user profile
       tags:
       - Auth
+  /scan/image:
+    post:
+      consumes:
+      - multipart/form-data
+      description: Accepts real-time image uploads for scanning
+      parameters:
+      - description: Image to scan
+        in: formData
+        name: file
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Process scanned image
+      tags:
+      - Scanner
 swagger: "2.0"
