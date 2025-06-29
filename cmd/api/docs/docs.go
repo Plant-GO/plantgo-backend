@@ -47,48 +47,8 @@ const docTemplate = `{
             }
         },
         "/admin/levels": {
-            "get": {
-                "security": [
-                    {
-                        "ApiKeyAuth": []
-                    }
-                ],
-                "description": "Retrieves all plant identification levels",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Admin"
-                ],
-                "summary": "Get all levels (Admin)",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/dto.LevelListResponse"
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "$ref": "#/definitions/dto.ErrorResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/dto.ErrorResponse"
-                        }
-                    }
-                }
-            },
             "post": {
-                "security": [
-                    {
-                        "ApiKeyAuth": []
-                    }
-                ],
-                "description": "Creates a new plant identification level",
+                "description": "Creates a new level with riddle, plant name, and reward",
                 "consumes": [
                     "application/json"
                 ],
@@ -98,104 +58,43 @@ const docTemplate = `{
                 "tags": [
                     "Admin"
                 ],
-                "summary": "Create a new level (Admin)",
+                "summary": "Create a new level",
                 "parameters": [
                     {
-                        "description": "Level data",
+                        "description": "Level creation info",
                         "name": "request",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/dto.CreateLevelRequest"
+                            "$ref": "#/definitions/level.LevelRequest"
                         }
                     }
                 ],
                 "responses": {
-                    "201": {
-                        "description": "Created",
+                    "200": {
+                        "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/dto.LevelResponse"
+                            "$ref": "#/definitions/level.Response"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/dto.ErrorResponse"
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "$ref": "#/definitions/dto.ErrorResponse"
+                            "$ref": "#/definitions/level.Response"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/dto.ErrorResponse"
+                            "$ref": "#/definitions/level.Response"
                         }
                     }
                 }
             }
         },
         "/admin/levels/{id}": {
-            "get": {
-                "security": [
-                    {
-                        "ApiKeyAuth": []
-                    }
-                ],
-                "description": "Retrieves a specific level by its ID",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Admin"
-                ],
-                "summary": "Get level by ID (Admin)",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "Level ID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/dto.LevelResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/dto.ErrorResponse"
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "$ref": "#/definitions/dto.ErrorResponse"
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found",
-                        "schema": {
-                            "$ref": "#/definitions/dto.ErrorResponse"
-                        }
-                    }
-                }
-            },
             "put": {
-                "security": [
-                    {
-                        "ApiKeyAuth": []
-                    }
-                ],
-                "description": "Updates an existing level",
+                "description": "Updates an existing level by ID",
                 "consumes": [
                     "application/json"
                 ],
@@ -205,7 +104,7 @@ const docTemplate = `{
                 "tags": [
                     "Admin"
                 ],
-                "summary": "Update a level (Admin)",
+                "summary": "Update level",
                 "parameters": [
                     {
                         "type": "integer",
@@ -215,12 +114,12 @@ const docTemplate = `{
                         "required": true
                     },
                     {
-                        "description": "Updated level data",
+                        "description": "Level update info",
                         "name": "request",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/dto.UpdateLevelRequest"
+                            "$ref": "#/definitions/level.LevelRequest"
                         }
                     }
                 ],
@@ -228,49 +127,38 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/dto.LevelResponse"
+                            "$ref": "#/definitions/level.Response"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/dto.ErrorResponse"
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "$ref": "#/definitions/dto.ErrorResponse"
+                            "$ref": "#/definitions/level.Response"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/dto.ErrorResponse"
+                            "$ref": "#/definitions/level.Response"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/dto.ErrorResponse"
+                            "$ref": "#/definitions/level.Response"
                         }
                     }
                 }
             },
             "delete": {
-                "security": [
-                    {
-                        "ApiKeyAuth": []
-                    }
-                ],
-                "description": "Deletes an existing level",
+                "description": "Deletes a level by ID",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "Admin"
                 ],
-                "summary": "Delete a level (Admin)",
+                "summary": "Delete level",
                 "parameters": [
                     {
                         "type": "integer",
@@ -284,31 +172,25 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/dto.SuccessResponse"
+                            "$ref": "#/definitions/level.Response"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/dto.ErrorResponse"
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "$ref": "#/definitions/dto.ErrorResponse"
+                            "$ref": "#/definitions/level.Response"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/dto.ErrorResponse"
+                            "$ref": "#/definitions/level.Response"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/dto.ErrorResponse"
+                            "$ref": "#/definitions/level.Response"
                         }
                     }
                 }
@@ -532,51 +414,207 @@ const docTemplate = `{
                 }
             }
         },
-        "/game/data": {
-            "get": {
-                "security": [
-                    {
-                        "ApiKeyAuth": []
-                    }
+        "/game/complete": {
+            "post": {
+                "description": "Marks a level as completed for a user",
+                "consumes": [
+                    "application/json"
                 ],
-                "description": "Returns user's game progress, completed levels, level reached, and all levels with their status",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "Game"
                 ],
-                "summary": "Get game data for user",
+                "summary": "Complete level",
+                "parameters": [
+                    {
+                        "description": "Level completion info",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/level.CompleteLevelRequest"
+                        }
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/dto.GameDataResponse"
+                            "$ref": "#/definitions/level.Response"
                         }
                     },
-                    "401": {
-                        "description": "Unauthorized",
+                    "400": {
+                        "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/dto.ErrorResponse"
+                            "$ref": "#/definitions/level.Response"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/level.Response"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/level.Response"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/dto.ErrorResponse"
+                            "$ref": "#/definitions/level.Response"
                         }
                     }
                 }
             }
         },
-        "/game/level/{id}": {
-            "get": {
-                "security": [
+        "/game/complete-by-number": {
+            "post": {
+                "description": "Marks a level as completed for a user using level number",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Game"
+                ],
+                "summary": "Complete level by number",
+                "parameters": [
                     {
-                        "ApiKeyAuth": []
+                        "description": "Level completion info",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/level.CompleteLevelByNumberRequest"
+                        }
                     }
                 ],
-                "description": "Returns the riddle and plant name for a specific level when user clicks on it",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/level.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/level.Response"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/level.Response"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/level.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/level.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/game/completed/{userId}": {
+            "get": {
+                "description": "Retrieves all levels completed by a user",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Game"
+                ],
+                "summary": "Get completed levels",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "User ID",
+                        "name": "userId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/level.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/level.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/level.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/game/data/{userId}": {
+            "get": {
+                "description": "Retrieves comprehensive game data for a user including progress and rewards",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Game"
+                ],
+                "summary": "Get game data",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "User ID",
+                        "name": "userId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/level.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/level.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/level.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/game/level/{userId}/{number}": {
+            "get": {
+                "description": "Retrieves detailed information about a level for a specific user",
                 "produces": [
                     "application/json"
                 ],
@@ -587,8 +625,15 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "integer",
-                        "description": "Level ID",
-                        "name": "id",
+                        "description": "User ID",
+                        "name": "userId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Level Number",
+                        "name": "number",
                         "in": "path",
                         "required": true
                     }
@@ -597,119 +642,101 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/dto.LevelDetailsResponse"
+                            "$ref": "#/definitions/level.Response"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/dto.ErrorResponse"
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "$ref": "#/definitions/dto.ErrorResponse"
+                            "$ref": "#/definitions/level.Response"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/dto.ErrorResponse"
+                            "$ref": "#/definitions/level.Response"
                         }
                     }
                 }
             }
         },
-        "/game/rewards": {
+        "/game/progress/{userId}": {
             "get": {
-                "security": [
-                    {
-                        "ApiKeyAuth": []
-                    }
-                ],
-                "description": "Returns user's total rewards and level reached",
+                "description": "Retrieves the progress of a user across all levels",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "Game"
                 ],
-                "summary": "Get user reward details",
+                "summary": "Get user progress",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "User ID",
+                        "name": "userId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/dto.UserRewardResponse"
+                            "$ref": "#/definitions/level.Response"
                         }
                     },
-                    "401": {
-                        "description": "Unauthorized",
+                    "400": {
+                        "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/dto.ErrorResponse"
+                            "$ref": "#/definitions/level.Response"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/dto.ErrorResponse"
+                            "$ref": "#/definitions/level.Response"
                         }
                     }
                 }
             }
         },
-        "/game/submit-answer": {
-            "post": {
-                "security": [
-                    {
-                        "ApiKeyAuth": []
-                    }
-                ],
-                "description": "Submits user's answer for a level and returns result with reward if correct",
-                "consumes": [
-                    "application/json"
-                ],
+        "/game/rewards/{userId}": {
+            "get": {
+                "description": "Retrieves the total reward points for a user",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "Game"
                 ],
-                "summary": "Submit answer for a level",
+                "summary": "Get user reward",
                 "parameters": [
                     {
-                        "description": "Answer submission",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/dto.SubmitAnswerRequest"
-                        }
+                        "type": "integer",
+                        "description": "User ID",
+                        "name": "userId",
+                        "in": "path",
+                        "required": true
                     }
                 ],
                 "responses": {
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/dto.SubmitAnswerResponse"
+                            "$ref": "#/definitions/level.Response"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/dto.ErrorResponse"
+                            "$ref": "#/definitions/level.Response"
                         }
                     },
-                    "401": {
-                        "description": "Unauthorized",
+                    "500": {
+                        "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/dto.ErrorResponse"
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found",
-                        "schema": {
-                            "$ref": "#/definitions/dto.ErrorResponse"
+                            "$ref": "#/definitions/level.Response"
                         }
                     }
                 }
@@ -731,6 +758,140 @@ const docTemplate = `{
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/levels": {
+            "get": {
+                "description": "Retrieves all levels in the system",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Level"
+                ],
+                "summary": "Get all levels",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/level.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/level.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/levels/number/{number}": {
+            "get": {
+                "description": "Retrieves a level by its level number",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Level"
+                ],
+                "summary": "Get level by number",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Level Number",
+                        "name": "number",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/level.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/level.Response"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/level.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/levels/{id}": {
+            "get": {
+                "description": "Retrieves a level by its ID",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Level"
+                ],
+                "summary": "Get level by ID",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Level ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/level.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/level.Response"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/level.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/plant/health": {
+            "get": {
+                "description": "Returns the health status of the service",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "System"
+                ],
+                "summary": "Health check",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/level.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/level.Response"
                         }
                     }
                 }
@@ -860,86 +1021,11 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.CreateLevelRequest": {
-            "type": "object",
-            "required": [
-                "plant_name",
-                "reward",
-                "riddle"
-            ],
-            "properties": {
-                "plant_name": {
-                    "type": "string",
-                    "maxLength": 255,
-                    "minLength": 2
-                },
-                "reward": {
-                    "type": "integer",
-                    "minimum": 1
-                },
-                "riddle": {
-                    "type": "string",
-                    "maxLength": 500,
-                    "minLength": 10
-                }
-            }
-        },
         "dto.ErrorResponse": {
             "type": "object",
             "properties": {
                 "error": {
                     "type": "string"
-                }
-            }
-        },
-        "dto.GameDataResponse": {
-            "type": "object",
-            "properties": {
-                "completed_levels": {
-                    "type": "integer"
-                },
-                "levels": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/dto.GameLevelData"
-                    }
-                },
-                "total_levels": {
-                    "type": "integer"
-                },
-                "user_reward": {
-                    "type": "object",
-                    "properties": {
-                        "id": {
-                            "type": "integer"
-                        },
-                        "level_reached": {
-                            "type": "integer"
-                        },
-                        "total_rewards": {
-                            "type": "integer"
-                        },
-                        "user_id": {
-                            "type": "integer"
-                        }
-                    }
-                }
-            }
-        },
-        "dto.GameLevelData": {
-            "type": "object",
-            "properties": {
-                "id": {
-                    "type": "integer"
-                },
-                "is_completed": {
-                    "type": "boolean"
-                },
-                "is_unlocked": {
-                    "type": "boolean"
-                },
-                "reward": {
-                    "type": "integer"
                 }
             }
         },
@@ -954,60 +1040,6 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "username": {
-                    "type": "string"
-                }
-            }
-        },
-        "dto.LevelDetailsResponse": {
-            "type": "object",
-            "properties": {
-                "id": {
-                    "type": "integer"
-                },
-                "plant_name": {
-                    "type": "string"
-                },
-                "reward": {
-                    "type": "integer"
-                },
-                "riddle": {
-                    "type": "string"
-                }
-            }
-        },
-        "dto.LevelListResponse": {
-            "type": "object",
-            "properties": {
-                "levels": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/dto.LevelResponse"
-                    }
-                },
-                "total": {
-                    "type": "integer"
-                }
-            }
-        },
-        "dto.LevelResponse": {
-            "type": "object",
-            "properties": {
-                "created_at": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "integer"
-                },
-                "plant_name": {
-                    "type": "string"
-                },
-                "reward": {
-                    "type": "integer"
-                },
-                "riddle": {
-                    "type": "string"
-                },
-                "updated_at": {
                     "type": "string"
                 }
             }
@@ -1047,97 +1079,6 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.SubmitAnswerRequest": {
-            "type": "object",
-            "required": [
-                "answer",
-                "level_id"
-            ],
-            "properties": {
-                "answer": {
-                    "type": "string",
-                    "maxLength": 255,
-                    "minLength": 1
-                },
-                "level_id": {
-                    "type": "integer"
-                }
-            }
-        },
-        "dto.SubmitAnswerResponse": {
-            "type": "object",
-            "properties": {
-                "correct_answer": {
-                    "type": "string"
-                },
-                "is_correct": {
-                    "type": "boolean"
-                },
-                "level_completed": {
-                    "type": "boolean"
-                },
-                "message": {
-                    "type": "string"
-                },
-                "reward_gained": {
-                    "type": "integer"
-                },
-                "total_rewards": {
-                    "type": "integer"
-                }
-            }
-        },
-        "dto.SuccessResponse": {
-            "type": "object",
-            "properties": {
-                "data": {},
-                "message": {
-                    "type": "string"
-                }
-            }
-        },
-        "dto.UpdateLevelRequest": {
-            "type": "object",
-            "properties": {
-                "plant_name": {
-                    "type": "string",
-                    "maxLength": 255,
-                    "minLength": 2
-                },
-                "reward": {
-                    "type": "integer",
-                    "minimum": 1
-                },
-                "riddle": {
-                    "type": "string",
-                    "maxLength": 500,
-                    "minLength": 10
-                }
-            }
-        },
-        "dto.UserRewardResponse": {
-            "type": "object",
-            "properties": {
-                "created_at": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "integer"
-                },
-                "level_reached": {
-                    "type": "integer"
-                },
-                "total_rewards": {
-                    "type": "integer"
-                },
-                "updated_at": {
-                    "type": "string"
-                },
-                "user_id": {
-                    "type": "integer"
-                }
-            }
-        },
         "infrastructure.User": {
             "type": "object",
             "properties": {
@@ -1164,6 +1105,60 @@ const docTemplate = `{
                 },
                 "username": {
                     "type": "string"
+                }
+            }
+        },
+        "level.CompleteLevelByNumberRequest": {
+            "type": "object",
+            "properties": {
+                "level_number": {
+                    "type": "integer"
+                },
+                "user_id": {
+                    "type": "integer"
+                }
+            }
+        },
+        "level.CompleteLevelRequest": {
+            "type": "object",
+            "properties": {
+                "level_id": {
+                    "type": "integer"
+                },
+                "user_id": {
+                    "type": "integer"
+                }
+            }
+        },
+        "level.LevelRequest": {
+            "type": "object",
+            "properties": {
+                "level_number": {
+                    "type": "integer"
+                },
+                "plant_name": {
+                    "type": "string"
+                },
+                "reward": {
+                    "type": "integer"
+                },
+                "riddle": {
+                    "type": "string"
+                }
+            }
+        },
+        "level.Response": {
+            "type": "object",
+            "properties": {
+                "data": {},
+                "error": {
+                    "type": "string"
+                },
+                "message": {
+                    "type": "string"
+                },
+                "success": {
+                    "type": "boolean"
                 }
             }
         }

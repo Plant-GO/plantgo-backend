@@ -13,7 +13,8 @@ import (
 	_ "github.com/joho/godotenv/autoload"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
-	"plantgo-backend/internal/modules/auth/infrastructure" 
+	authinfra "plantgo-backend/internal/modules/auth/infrastructure"
+	levelinfra "plantgo-backend/internal/modules/level/infrastructure"
 )
 
 type Service interface {
@@ -71,7 +72,14 @@ func NewGormDB() *gorm.DB {
 	}
 
 	log.Println("Running database auto-migration...")
-	err = db.AutoMigrate(&infrastructure.User{})
+	
+	err = db.AutoMigrate(
+		authinfra.User{},
+		levelinfra.Level{},
+		levelinfra.UserLevelProgress{},
+		levelinfra.UserReward{},
+	)
+
 	if err != nil {
 		log.Fatal("Failed to auto-migrate database:", err)
 	}
@@ -92,7 +100,7 @@ func (s *service) Health() map[string]string {
 	if err != nil {
 		stats["status"] = "down"
 		stats["error"] = fmt.Sprintf("db down: %v", err)
-		log.Fatalf("db down: %v", err) 
+		log.Fatalf("db down: %v", err)
 		return stats
 	}
 
@@ -108,7 +116,7 @@ func (s *service) Health() map[string]string {
 	stats["max_idle_closed"] = strconv.FormatInt(dbStats.MaxIdleClosed, 10)
 	stats["max_lifetime_closed"] = strconv.FormatInt(dbStats.MaxLifetimeClosed, 10)
 
-	if dbStats.OpenConnections > 40 { 
+	if dbStats.OpenConnections > 40 {
 		stats["message"] = "The database is experiencing heavy load."
 	}
 

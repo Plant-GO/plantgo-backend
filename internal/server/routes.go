@@ -11,6 +11,7 @@ import (
 	"plantgo-backend/internal/database"
 	"plantgo-backend/internal/modules/auth"
 	"plantgo-backend/internal/modules/level"
+	"plantgo-backend/internal/modules/level/infrastructure"
 	"plantgo-backend/internal/modules/plant"
 )
 
@@ -30,19 +31,23 @@ func (s *Server) RegisterRoutes() http.Handler {
 	r.GET("/", s.HelloWorldHandler)
 	r.GET("/health", s.healthHandler)
 
+	// Initialize services and handlers
 	authService := auth.NewAuthService(database.NewGormDB())
 	scanService := plant.NewScanService()
-	plantService := level.NewPlantService(database.NewGormDB())
+	
+	// Initialize PlantHandler with repository
+	plantRepository := infrastructure.NewPlantRepository(database.NewGormDB())
+	plantHandler := level.NewPlantHandler(plantRepository)
 
+	// Auth routes
 	r.GET("/auth/google/login", authService.GoogleLoginHandler)
 	r.GET("/auth/google/callback", authService.GoogleCallbackHandler)
 	r.POST("/auth/guest/login", authService.GuestLoginHandler)
 	r.POST("/auth/register", authService.RegisterHandler)
 	r.POST("/auth/login", authService.LoginHandler)
 
+	// Scan routes
 	r.POST("/scan/image", scanService.ScanImageHandler)
-
-	// WebSocket endpoint for video streaming
 	r.GET("/scan/video", scanService.ScanVideoHandler)
 
 	// Protected routes
@@ -55,23 +60,35 @@ func (s *Server) RegisterRoutes() http.Handler {
 		// Game routes (user-facing)
 		gameGroup := authorized.Group("/game")
 		{
-			gameGroup.GET("/data", plantService.GetGameDataHandler)
-			gameGroup.GET("/level/:id", plantService.GetLevelDetailsHandler)
-			gameGroup.POST("/submit-answer", plantService.SubmitAnswerHandler)
-			gameGroup.GET("/rewards", plantService.GetUserRewardHandler)
+			gameGroup.GET("/data/:userId", plantHandler.GetGameData)
+			gameGroup.GET("/level/:userId/:number", plantHandler.GetLevelDetails)
+			gameGroup.GET("/progress/:userId", plantHandler.GetUserProgress)
+			gameGroup.GET("/completed/:userId", plantHandler.GetCompletedLevels)
+			gameGroup.GET("/rewards/:userId", plantHandler.GetUserReward)
+			gameGroup.POST("/complete", plantHandler.CompleteLevel)
+			gameGroup.POST("/complete-by-number", plantHandler.CompleteLevelByNumber)
+		}
+
+		// Level routes (general access)
+		levelGroup := authorized.Group("/levels")
+		{
+			levelGroup.GET("/", plantHandler.GetAllLevels)
+			levelGroup.GET("/:id", plantHandler.GetLevel)
+			levelGroup.GET("/number/:number", plantHandler.GetLevelByNumber)
 		}
 
 		// Admin routes (level management)
 		adminGroup := authorized.Group("/admin")
 		// adminGroup.Use(AdminMiddleware()) // Add admin middleware when available
 		{
-			adminGroup.POST("/levels", plantService.CreateLevelHandler)
-			adminGroup.GET("/levels", plantService.GetAllLevelsHandler)
-			adminGroup.GET("/levels/:id", plantService.GetLevelByIDHandler)
-			adminGroup.PUT("/levels/:id", plantService.UpdateLevelHandler)
-			adminGroup.DELETE("/levels/:id", plantService.DeleteLevelHandler)
+			adminGroup.POST("/levels", plantHandler.CreateLevel)
+			adminGroup.PUT("/levels/:id", plantHandler.UpdateLevel)
+			adminGroup.DELETE("/levels/:id", plantHandler.DeleteLevel)
 		}
 	}
+
+	// Health check for the plant service
+	r.GET("/plant/health", plantHandler.HealthCheck)
 
 	return r
 }

@@ -1,532 +1,565 @@
+// internal/modules/plant/handlers.go
 package level
 
 import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
-	"gorm.io/gorm"
-
-	"plantgo-backend/internal/dto"
 	"plantgo-backend/internal/modules/level/infrastructure"
 )
 
-type PlantService struct {
-	plantRepo *infrastructure.PlantRepository
+type PlantHandler struct {
+	repository *infrastructure.PlantRepository
 }
 
-func NewPlantService(db *gorm.DB) *PlantService {
-	return &PlantService{
-		plantRepo: infrastructure.NewPlantRepository(db),
+func NewPlantHandler(repository *infrastructure.PlantRepository) *PlantHandler {
+	return &PlantHandler{
+		repository: repository,
 	}
 }
 
-// Game Loading Handler
-
-// GetGameDataHandler godoc
-// @Summary      Get game data for user
-// @Description  Returns user's game progress, completed levels, level reached, and all levels with their status
-// @Tags         Game
-// @Produce      json
-// @Security     ApiKeyAuth
-// @Success      200 {object} dto.GameDataResponse
-// @Failure      401 {object} dto.ErrorResponse
-// @Failure      500 {object} dto.ErrorResponse
-// @Router       /game/data [get]
-func (s *PlantService) GetGameDataHandler(c *gin.Context) {
-	userID, exists := c.Get("userID")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, dto.ErrorResponse{
-			Error: "User not authenticated",
-		})
-		return
-	}
-
-	id, err := strconv.ParseUint(userID.(string), 10, 32)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, dto.ErrorResponse{
-			Error: "Invalid user ID",
-		})
-		return
-	}
-
-	gameData, err := s.plantRepo.GetGameData(uint(id))
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
-			Error: "Failed to fetch game data",
-		})
-		return
-	}
-
-	c.JSON(http.StatusOK, gameData)
+// Response structures
+type Response struct {
+	Success bool        `json:"success"`
+	Message string      `json:"message"`
+	Data    interface{} `json:"data,omitempty"`
+	Error   string      `json:"error,omitempty"`
 }
 
-// GetLevelDetailsHandler godoc
-// @Summary      Get level details
-// @Description  Returns the riddle and plant name for a specific level when user clicks on it
-// @Tags         Game
-// @Produce      json
-// @Security     ApiKeyAuth
-// @Param        id path int true "Level ID"
-// @Success      200 {object} dto.LevelDetailsResponse
-// @Failure      400 {object} dto.ErrorResponse
-// @Failure      401 {object} dto.ErrorResponse
-// @Failure      404 {object} dto.ErrorResponse
-// @Router       /game/level/{id} [get]
-func (s *PlantService) GetLevelDetailsHandler(c *gin.Context) {
-	userID, exists := c.Get("userID")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, dto.ErrorResponse{
-			Error: "User not authenticated",
-		})
-		return
-	}
-
-	levelIDStr := c.Param("id")
-	levelID, err := strconv.ParseUint(levelIDStr, 10, 32)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, dto.ErrorResponse{
-			Error: "Invalid level ID",
-		})
-		return
-	}
-
-	// Check if user can access this level
-	userIDUint, _ := strconv.ParseUint(userID.(string), 10, 32)
-	userReward, err := s.plantRepo.GetOrCreateUserReward(uint(userIDUint))
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
-			Error: "Failed to get user progress",
-		})
-		return
-	}
-
-	if int(levelID) > userReward.LevelReached {
-		c.JSON(http.StatusForbidden, dto.ErrorResponse{
-			Error: "Level not unlocked yet",
-		})
-		return
-	}
-
-	levelDetails, err := s.plantRepo.GetLevelDetails(uint(levelID))
-	if err != nil {
-		c.JSON(http.StatusNotFound, dto.ErrorResponse{
-			Error: "Level not found",
-		})
-		return
-	}
-
-	c.JSON(http.StatusOK, levelDetails)
+type LevelRequest struct {
+	LevelNumber int    `json:"level_number"`
+	Riddle      string `json:"riddle"`
+	PlantName   string `json:"plant_name"`
+	Reward      int    `json:"reward"`
 }
 
-// SubmitAnswerHandler godoc
-// @Summary      Submit answer for a level
-// @Description  Submits user's answer for a level and returns result with reward if correct
-// @Tags         Game
-// @Accept       json
-// @Produce      json
-// @Security     ApiKeyAuth
-// @Param        request body dto.SubmitAnswerRequest true "Answer submission"
-// @Success      200 {object} dto.SubmitAnswerResponse
-// @Failure      400 {object} dto.ErrorResponse
-// @Failure      401 {object} dto.ErrorResponse
-// @Failure      404 {object} dto.ErrorResponse
-// @Router       /game/submit-answer [post]
-func (s *PlantService) SubmitAnswerHandler(c *gin.Context) {
-	userID, exists := c.Get("userID")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, dto.ErrorResponse{
-			Error: "User not authenticated",
-		})
-		return
+type CompleteLevelRequest struct {
+	UserID  uint `json:"user_id"`
+	LevelID uint `json:"level_id"`
+}
+
+type CompleteLevelByNumberRequest struct {
+	UserID      uint `json:"user_id"`
+	LevelNumber int  `json:"level_number"`
+}
+
+// Helper functions
+func (h *PlantHandler) sendError(c *gin.Context, statusCode int, message string, err error) {
+	response := Response{
+		Success: false,
+		Message: message,
 	}
-
-	var req dto.SubmitAnswerRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, dto.ErrorResponse{
-			Error:   "Invalid request payload",
-		})
-		return
-	}
-
-	userIDUint, _ := strconv.ParseUint(userID.(string), 10, 32)
-
-	// Check if level is already completed
-	if s.plantRepo.IsLevelCompleted(uint(userIDUint), req.LevelID) {
-		c.JSON(http.StatusBadRequest, dto.ErrorResponse{
-			Error: "Level already completed",
-		})
-		return
-	}
-
-	// Get level details
-	level, err := s.plantRepo.GetLevelByID(req.LevelID)
 	if err != nil {
-		c.JSON(http.StatusNotFound, dto.ErrorResponse{
-			Error: "Level not found",
-		})
-		return
+		response.Error = err.Error()
 	}
+	c.JSON(statusCode, response)
+}
 
-	// Check if user can access this level
-	userReward, err := s.plantRepo.GetOrCreateUserReward(uint(userIDUint))
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
-			Error: "Failed to get user progress",
-		})
-		return
+func (h *PlantHandler) sendSuccess(c *gin.Context, message string, data interface{}) {
+	response := Response{
+		Success: true,
+		Message: message,
+		Data:    data,
 	}
-
-	if int(req.LevelID) > userReward.LevelReached {
-		c.JSON(http.StatusForbidden, dto.ErrorResponse{
-			Error: "Level not unlocked yet",
-		})
-		return
-	}
-
-	// Check answer (case-insensitive)
-	userAnswer := strings.ToLower(strings.TrimSpace(req.Answer))
-	correctAnswer := strings.ToLower(strings.TrimSpace(level.PlantName))
-	
-	isCorrect := userAnswer == correctAnswer
-
-	response := dto.SubmitAnswerResponse{
-		IsCorrect:      isCorrect,
-		LevelCompleted: false,
-		RewardGained:   0,
-		TotalRewards:   userReward.TotalRewards,
-	}
-
-	if isCorrect {
-		// Complete the level and add reward
-		err = s.plantRepo.CompleteLevel(uint(userIDUint), req.LevelID)
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
-				Error: "Failed to complete level",
-			})
-			return
-		}
-
-		// Get updated user reward
-		updatedUserReward, err := s.plantRepo.GetUserReward(uint(userIDUint))
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
-				Error: "Failed to get updated rewards",
-			})
-			return
-		}
-
-		response.Message = "Correct! Level completed!"
-		response.LevelCompleted = true
-		response.RewardGained = level.Reward
-		response.TotalRewards = updatedUserReward.TotalRewards
-	} else {
-		response.Message = "Incorrect answer. Try again!"
-		response.CorrectAnswer = level.PlantName
-	}
-
 	c.JSON(http.StatusOK, response)
 }
 
-// GetUserRewardHandler godoc
-// @Summary      Get user reward details
-// @Description  Returns user's total rewards and level reached
-// @Tags         Game
-// @Produce      json
-// @Security     ApiKeyAuth
-// @Success      200 {object} dto.UserRewardResponse
-// @Failure      401 {object} dto.ErrorResponse
-// @Failure      500 {object} dto.ErrorResponse
-// @Router       /game/rewards [get]
-func (s *PlantService) GetUserRewardHandler(c *gin.Context) {
-	userID, exists := c.Get("userID")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, dto.ErrorResponse{
-			Error: "User not authenticated",
-		})
-		return
-	}
-
-	id, err := strconv.ParseUint(userID.(string), 10, 32)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, dto.ErrorResponse{
-			Error: "Invalid user ID",
-		})
-		return
-	}
-
-	userReward, err := s.plantRepo.GetOrCreateUserReward(uint(id))
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
-			Error: "Failed to fetch user rewards",
-		})
-		return
-	}
-
-	response := dto.UserRewardResponse{
-		ID:           userReward.ID,
-		UserID:       userReward.UserID,
-		TotalRewards: userReward.TotalRewards,
-		LevelReached: userReward.LevelReached,
-		CreatedAt:    userReward.CreatedAt,
-		UpdatedAt:    userReward.UpdatedAt,
-	}
-
-	c.JSON(http.StatusOK, response)
-}
-
-// Admin Level Management Handlers
-
-// CreateLevelHandler godoc
-// @Summary      Create a new level (Admin)
-// @Description  Creates a new plant identification level
+// CreateLevel godoc
+// @Summary      Create a new level
+// @Description  Creates a new level with riddle, plant name, and reward
 // @Tags         Admin
 // @Accept       json
 // @Produce      json
-// @Security     ApiKeyAuth
-// @Param        request body dto.CreateLevelRequest true "Level data"
-// @Success      201 {object} dto.LevelResponse
-// @Failure      400 {object} dto.ErrorResponse
-// @Failure      401 {object} dto.ErrorResponse
-// @Failure      500 {object} dto.ErrorResponse
+// @Param        request body LevelRequest true "Level creation info"
+// @Success      200 {object} Response
+// @Failure      400 {object} Response
+// @Failure      500 {object} Response
 // @Router       /admin/levels [post]
-func (s *PlantService) CreateLevelHandler(c *gin.Context) {
-	var req dto.CreateLevelRequest
-
+func (h *PlantHandler) CreateLevel(c *gin.Context) {
+	var req LevelRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, dto.ErrorResponse{
-			Error:   "Invalid request payload",
-		})
+		h.sendError(c, http.StatusBadRequest, "Invalid request body", err)
+		return
+	}
+
+	// Validate required fields
+	if req.LevelNumber <= 0 {
+		h.sendError(c, http.StatusBadRequest, "Level number must be greater than 0", nil)
+		return
+	}
+	if strings.TrimSpace(req.Riddle) == "" {
+		h.sendError(c, http.StatusBadRequest, "Riddle cannot be empty", nil)
+		return
+	}
+	if strings.TrimSpace(req.PlantName) == "" {
+		h.sendError(c, http.StatusBadRequest, "Plant name cannot be empty", nil)
 		return
 	}
 
 	level := &infrastructure.Level{
-		Riddle:    req.Riddle,
-		PlantName: req.PlantName,
-		Reward:    req.Reward,
+		LevelNumber: req.LevelNumber,
+		Riddle:      strings.TrimSpace(req.Riddle),
+		PlantName:   strings.TrimSpace(req.PlantName),
+		Reward:      req.Reward,
+		CreatedAt:   time.Now().UTC(),
+		UpdatedAt:   time.Now().UTC(),
 	}
 
-	if err := s.plantRepo.CreateLevel(level); err != nil {
-		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
-			Error: "Failed to create level",
-		})
+	if err := h.repository.CreateLevel(level); err != nil {
+		h.sendError(c, http.StatusInternalServerError, "Failed to create level", err)
 		return
 	}
 
-	response := dto.LevelResponse{
-		ID:        level.ID,
-		Riddle:    level.Riddle,
-		PlantName: level.PlantName,
-		Reward:    level.Reward,
-		CreatedAt: level.CreatedAt,
-		UpdatedAt: level.UpdatedAt,
-	}
-
-	c.JSON(http.StatusCreated, response)
+	h.sendSuccess(c, "Level created successfully", level)
 }
 
-// GetAllLevelsHandler godoc
-// @Summary      Get all levels (Admin)
-// @Description  Retrieves all plant identification levels
-// @Tags         Admin
+// GetLevel godoc
+// @Summary      Get level by ID
+// @Description  Retrieves a level by its ID
+// @Tags         Level
 // @Produce      json
-// @Security     ApiKeyAuth
-// @Success      200 {object} dto.LevelListResponse
-// @Failure      401 {object} dto.ErrorResponse
-// @Failure      500 {object} dto.ErrorResponse
-// @Router       /admin/levels [get]
-func (s *PlantService) GetAllLevelsHandler(c *gin.Context) {
-	levels, err := s.plantRepo.GetAllLevels()
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
-			Error: "Failed to fetch levels",
-		})
-		return
-	}
-
-	total, err := s.plantRepo.GetLevelsCount()
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
-			Error: "Failed to count levels",
-		})
-		return
-	}
-
-	levelResponses := make([]dto.LevelResponse, len(levels))
-	for i, level := range levels {
-		levelResponses[i] = dto.LevelResponse{
-			ID:        level.ID,
-			Riddle:    level.Riddle,
-			PlantName: level.PlantName,
-			Reward:    level.Reward,
-			CreatedAt: level.CreatedAt,
-			UpdatedAt: level.UpdatedAt,
-		}
-	}
-
-	response := dto.LevelListResponse{
-		Levels: levelResponses,
-		Total:  total,
-	}
-
-	c.JSON(http.StatusOK, response)
-}
-
-// GetLevelByIDHandler godoc
-// @Summary      Get level by ID (Admin)
-// @Description  Retrieves a specific level by its ID
-// @Tags         Admin
-// @Produce      json
-// @Security     ApiKeyAuth
 // @Param        id path int true "Level ID"
-// @Success      200 {object} dto.LevelResponse
-// @Failure      400 {object} dto.ErrorResponse
-// @Failure      401 {object} dto.ErrorResponse
-// @Failure      404 {object} dto.ErrorResponse
-// @Router       /admin/levels/{id} [get]
-func (s *PlantService) GetLevelByIDHandler(c *gin.Context) {
-	levelIDStr := c.Param("id")
-	levelID, err := strconv.ParseUint(levelIDStr, 10, 32)
+// @Success      200 {object} Response
+// @Failure      400 {object} Response
+// @Failure      404 {object} Response
+// @Router       /levels/{id} [get]
+func (h *PlantHandler) GetLevel(c *gin.Context) {
+	idStr := c.Param("id")
+	
+	id, err := strconv.ParseUint(idStr, 10, 32)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, dto.ErrorResponse{
-			Error: "Invalid level ID",
-		})
+		h.sendError(c, http.StatusBadRequest, "Invalid level ID", err)
 		return
 	}
 
-	level, err := s.plantRepo.GetLevelByID(uint(levelID))
+	level, err := h.repository.GetLevelByID(uint(id))
 	if err != nil {
-		c.JSON(http.StatusNotFound, dto.ErrorResponse{
-			Error: "Level not found",
-		})
+		h.sendError(c, http.StatusNotFound, "Level not found", err)
 		return
 	}
 
-	response := dto.LevelResponse{
-		ID:        level.ID,
-		Riddle:    level.Riddle,
-		PlantName: level.PlantName,
-		Reward:    level.Reward,
-		CreatedAt: level.CreatedAt,
-		UpdatedAt: level.UpdatedAt,
-	}
-
-	c.JSON(http.StatusOK, response)
+	h.sendSuccess(c, "Level retrieved successfully", level)
 }
 
-// UpdateLevelHandler godoc
-// @Summary      Update a level (Admin)
-// @Description  Updates an existing level
+// GetLevelByNumber godoc
+// @Summary      Get level by number
+// @Description  Retrieves a level by its level number
+// @Tags         Level
+// @Produce      json
+// @Param        number path int true "Level Number"
+// @Success      200 {object} Response
+// @Failure      400 {object} Response
+// @Failure      404 {object} Response
+// @Router       /levels/number/{number} [get]
+func (h *PlantHandler) GetLevelByNumber(c *gin.Context) {
+	levelNumberStr := c.Param("number")
+	
+	levelNumber, err := strconv.Atoi(levelNumberStr)
+	if err != nil {
+		h.sendError(c, http.StatusBadRequest, "Invalid level number", err)
+		return
+	}
+
+	level, err := h.repository.GetLevelByNumber(levelNumber)
+	if err != nil {
+		h.sendError(c, http.StatusNotFound, "Level not found", err)
+		return
+	}
+
+	h.sendSuccess(c, "Level retrieved successfully", level)
+}
+
+// GetAllLevels godoc
+// @Summary      Get all levels
+// @Description  Retrieves all levels in the system
+// @Tags         Level
+// @Produce      json
+// @Success      200 {object} Response
+// @Failure      500 {object} Response
+// @Router       /levels [get]
+func (h *PlantHandler) GetAllLevels(c *gin.Context) {
+	levels, err := h.repository.GetAllLevels()
+	if err != nil {
+		h.sendError(c, http.StatusInternalServerError, "Failed to retrieve levels", err)
+		return
+	}
+
+	h.sendSuccess(c, "Levels retrieved successfully", levels)
+}
+
+// UpdateLevel godoc
+// @Summary      Update level
+// @Description  Updates an existing level by ID
 // @Tags         Admin
 // @Accept       json
 // @Produce      json
-// @Security     ApiKeyAuth
 // @Param        id path int true "Level ID"
-// @Param        request body dto.UpdateLevelRequest true "Updated level data"
-// @Success      200 {object} dto.LevelResponse
-// @Failure      400 {object} dto.ErrorResponse
-// @Failure      401 {object} dto.ErrorResponse
-// @Failure      404 {object} dto.ErrorResponse
-// @Failure      500 {object} dto.ErrorResponse
+// @Param        request body LevelRequest true "Level update info"
+// @Success      200 {object} Response
+// @Failure      400 {object} Response
+// @Failure      404 {object} Response
+// @Failure      500 {object} Response
 // @Router       /admin/levels/{id} [put]
-func (s *PlantService) UpdateLevelHandler(c *gin.Context) {
-	levelIDStr := c.Param("id")
-	levelID, err := strconv.ParseUint(levelIDStr, 10, 32)
+func (h *PlantHandler) UpdateLevel(c *gin.Context) {
+	idStr := c.Param("id")
+	
+	id, err := strconv.ParseUint(idStr, 10, 32)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, dto.ErrorResponse{
-			Error: "Invalid level ID",
-		})
-		return
-	}
-
-	var req dto.UpdateLevelRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, dto.ErrorResponse{
-			Error:   "Invalid request payload",
-		})
+		h.sendError(c, http.StatusBadRequest, "Invalid level ID", err)
 		return
 	}
 
 	// Get existing level
-	level, err := s.plantRepo.GetLevelByID(uint(levelID))
+	existingLevel, err := h.repository.GetLevelByID(uint(id))
 	if err != nil {
-		c.JSON(http.StatusNotFound, dto.ErrorResponse{
-			Error: "Level not found",
-		})
+		h.sendError(c, http.StatusNotFound, "Level not found", err)
+		return
+	}
+
+	var req LevelRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		h.sendError(c, http.StatusBadRequest, "Invalid request body", err)
 		return
 	}
 
 	// Update fields if provided
-	if req.Riddle != "" {
-		level.Riddle = req.Riddle
+	if req.LevelNumber > 0 {
+		existingLevel.LevelNumber = req.LevelNumber
 	}
-	if req.PlantName != "" {
-		level.PlantName = req.PlantName
+	if strings.TrimSpace(req.Riddle) != "" {
+		existingLevel.Riddle = strings.TrimSpace(req.Riddle)
 	}
-	if req.Reward > 0 {
-		level.Reward = req.Reward
+	if strings.TrimSpace(req.PlantName) != "" {
+		existingLevel.PlantName = strings.TrimSpace(req.PlantName)
 	}
+	if req.Reward >= 0 {
+		existingLevel.Reward = req.Reward
+	}
+	existingLevel.UpdatedAt = time.Now().UTC()
 
-	if err := s.plantRepo.UpdateLevel(level); err != nil {
-		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
-			Error: "Failed to update level",
-		})
+	if err := h.repository.UpdateLevel(existingLevel); err != nil {
+		h.sendError(c, http.StatusInternalServerError, "Failed to update level", err)
 		return
 	}
 
-	response := dto.LevelResponse{
-		ID:        level.ID,
-		Riddle:    level.Riddle,
-		PlantName: level.PlantName,
-		Reward:    level.Reward,
-		CreatedAt: level.CreatedAt,
-		UpdatedAt: level.UpdatedAt,
-	}
-
-	c.JSON(http.StatusOK, response)
+	h.sendSuccess(c, "Level updated successfully", existingLevel)
 }
 
-// DeleteLevelHandler godoc
-// @Summary      Delete a level (Admin)
-// @Description  Deletes an existing level
+// DeleteLevel godoc
+// @Summary      Delete level
+// @Description  Deletes a level by ID
 // @Tags         Admin
 // @Produce      json
-// @Security     ApiKeyAuth
 // @Param        id path int true "Level ID"
-// @Success      200 {object} dto.SuccessResponse
-// @Failure      400 {object} dto.ErrorResponse
-// @Failure      401 {object} dto.ErrorResponse
-// @Failure      404 {object} dto.ErrorResponse
-// @Failure      500 {object} dto.ErrorResponse
+// @Success      200 {object} Response
+// @Failure      400 {object} Response
+// @Failure      404 {object} Response
+// @Failure      500 {object} Response
 // @Router       /admin/levels/{id} [delete]
-func (s *PlantService) DeleteLevelHandler(c *gin.Context) {
-	levelIDStr := c.Param("id")
-	levelID, err := strconv.ParseUint(levelIDStr, 10, 32)
+func (h *PlantHandler) DeleteLevel(c *gin.Context) {
+	idStr := c.Param("id")
+	
+	id, err := strconv.ParseUint(idStr, 10, 32)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, dto.ErrorResponse{
-			Error: "Invalid level ID",
-		})
+		h.sendError(c, http.StatusBadRequest, "Invalid level ID", err)
 		return
 	}
 
 	// Check if level exists
-	_, err = s.plantRepo.GetLevelByID(uint(levelID))
+	_, err = h.repository.GetLevelByID(uint(id))
 	if err != nil {
-		c.JSON(http.StatusNotFound, dto.ErrorResponse{
-			Error: "Level not found",
-		})
+		h.sendError(c, http.StatusNotFound, "Level not found", err)
 		return
 	}
 
-	if err := s.plantRepo.DeleteLevel(uint(levelID)); err != nil {
-		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
-			Error: "Failed to delete level",
-		})
+	if err := h.repository.DeleteLevel(uint(id)); err != nil {
+		h.sendError(c, http.StatusInternalServerError, "Failed to delete level", err)
 		return
 	}
 
-	c.JSON(http.StatusOK, dto.SuccessResponse{
-		Message: "Level deleted successfully",
-	})
+	h.sendSuccess(c, "Level deleted successfully", nil)
+}
+
+// GetUserProgress godoc
+// @Summary      Get user progress
+// @Description  Retrieves the progress of a user across all levels
+// @Tags         Game
+// @Produce      json
+// @Param        userId path int true "User ID"
+// @Success      200 {object} Response
+// @Failure      400 {object} Response
+// @Failure      500 {object} Response
+// @Router       /game/progress/{userId} [get]
+func (h *PlantHandler) GetUserProgress(c *gin.Context) {
+	userIDStr := c.Param("userId")
+	
+	userID, err := strconv.ParseUint(userIDStr, 10, 32)
+	if err != nil {
+		h.sendError(c, http.StatusBadRequest, "Invalid user ID", err)
+		return
+	}
+
+	progress, err := h.repository.GetUserProgress(uint(userID))
+	if err != nil {
+		h.sendError(c, http.StatusInternalServerError, "Failed to retrieve user progress", err)
+		return
+	}
+
+	h.sendSuccess(c, "User progress retrieved successfully", progress)
+}
+
+// GetCompletedLevels godoc
+// @Summary      Get completed levels
+// @Description  Retrieves all levels completed by a user
+// @Tags         Game
+// @Produce      json
+// @Param        userId path int true "User ID"
+// @Success      200 {object} Response
+// @Failure      400 {object} Response
+// @Failure      500 {object} Response
+// @Router       /game/completed/{userId} [get]
+func (h *PlantHandler) GetCompletedLevels(c *gin.Context) {
+	userIDStr := c.Param("userId")
+	
+	userID, err := strconv.ParseUint(userIDStr, 10, 32)
+	if err != nil {
+		h.sendError(c, http.StatusBadRequest, "Invalid user ID", err)
+		return
+	}
+
+	completedLevels, err := h.repository.GetCompletedLevels(uint(userID))
+	if err != nil {
+		h.sendError(c, http.StatusInternalServerError, "Failed to retrieve completed levels", err)
+		return
+	}
+
+	h.sendSuccess(c, "Completed levels retrieved successfully", completedLevels)
+}
+
+// CompleteLevel godoc
+// @Summary      Complete level
+// @Description  Marks a level as completed for a user
+// @Tags         Game
+// @Accept       json
+// @Produce      json
+// @Param        request body CompleteLevelRequest true "Level completion info"
+// @Success      200 {object} Response
+// @Failure      400 {object} Response
+// @Failure      404 {object} Response
+// @Failure      409 {object} Response
+// @Failure      500 {object} Response
+// @Router       /game/complete [post]
+func (h *PlantHandler) CompleteLevel(c *gin.Context) {
+	var req CompleteLevelRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		h.sendError(c, http.StatusBadRequest, "Invalid request body", err)
+		return
+	}
+
+	if req.UserID == 0 || req.LevelID == 0 {
+		h.sendError(c, http.StatusBadRequest, "User ID and Level ID are required", nil)
+		return
+	}
+
+	// Check if level exists
+	level, err := h.repository.GetLevelByID(req.LevelID)
+	if err != nil {
+		h.sendError(c, http.StatusNotFound, "Level not found", err)
+		return
+	}
+
+	// Check if already completed
+	if h.repository.IsLevelCompleted(req.UserID, req.LevelID) {
+		h.sendError(c, http.StatusConflict, "Level already completed", nil)
+		return
+	}
+
+	if err := h.repository.CompleteLevel(req.UserID, req.LevelID); err != nil {
+		h.sendError(c, http.StatusInternalServerError, "Failed to complete level", err)
+		return
+	}
+
+	responseData := map[string]interface{}{
+		"user_id":      req.UserID,
+		"level_id":     req.LevelID,
+		"level_number": level.LevelNumber,
+		"reward":       level.Reward,
+		"completed_at": time.Now().UTC(),
+	}
+
+	h.sendSuccess(c, "Level completed successfully", responseData)
+}
+
+// CompleteLevelByNumber godoc
+// @Summary      Complete level by number
+// @Description  Marks a level as completed for a user using level number
+// @Tags         Game
+// @Accept       json
+// @Produce      json
+// @Param        request body CompleteLevelByNumberRequest true "Level completion info"
+// @Success      200 {object} Response
+// @Failure      400 {object} Response
+// @Failure      404 {object} Response
+// @Failure      409 {object} Response
+// @Failure      500 {object} Response
+// @Router       /game/complete-by-number [post]
+func (h *PlantHandler) CompleteLevelByNumber(c *gin.Context) {
+	var req CompleteLevelByNumberRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		h.sendError(c, http.StatusBadRequest, "Invalid request body", err)
+		return
+	}
+
+	if req.UserID == 0 || req.LevelNumber <= 0 {
+		h.sendError(c, http.StatusBadRequest, "User ID and Level Number are required", nil)
+		return
+	}
+
+	// Get level by number
+	level, err := h.repository.GetLevelByNumber(req.LevelNumber)
+	if err != nil {
+		h.sendError(c, http.StatusNotFound, "Level not found", err)
+		return
+	}
+
+	// Check if already completed
+	if h.repository.IsLevelCompletedByNumber(req.UserID, req.LevelNumber) {
+		h.sendError(c, http.StatusConflict, "Level already completed", nil)
+		return
+	}
+
+	if err := h.repository.CompleteLevel(req.UserID, level.ID); err != nil {
+		h.sendError(c, http.StatusInternalServerError, "Failed to complete level", err)
+		return
+	}
+
+	responseData := map[string]interface{}{
+		"user_id":      req.UserID,
+		"level_id":     level.ID,
+		"level_number": level.LevelNumber,
+		"reward":       level.Reward,
+		"completed_at": time.Now().UTC(),
+	}
+
+	h.sendSuccess(c, "Level completed successfully", responseData)
+}
+
+// GetUserReward godoc
+// @Summary      Get user reward
+// @Description  Retrieves the total reward points for a user
+// @Tags         Game
+// @Produce      json
+// @Param        userId path int true "User ID"
+// @Success      200 {object} Response
+// @Failure      400 {object} Response
+// @Failure      500 {object} Response
+// @Router       /game/rewards/{userId} [get]
+func (h *PlantHandler) GetUserReward(c *gin.Context) {
+	userIDStr := c.Param("userId")
+	
+	userID, err := strconv.ParseUint(userIDStr, 10, 32)
+	if err != nil {
+		h.sendError(c, http.StatusBadRequest, "Invalid user ID", err)
+		return
+	}
+
+	reward, err := h.repository.GetOrCreateUserReward(uint(userID))
+	if err != nil {
+		h.sendError(c, http.StatusInternalServerError, "Failed to retrieve user reward", err)
+		return
+	}
+
+	h.sendSuccess(c, "User reward retrieved successfully", reward)
+}
+
+// GetLevelDetails godoc
+// @Summary      Get level details
+// @Description  Retrieves detailed information about a level for a specific user
+// @Tags         Game
+// @Produce      json
+// @Param        userId path int true "User ID"
+// @Param        number path int true "Level Number"
+// @Success      200 {object} Response
+// @Failure      400 {object} Response
+// @Failure      404 {object} Response
+// @Router       /game/level/{userId}/{number} [get]
+func (h *PlantHandler) GetLevelDetails(c *gin.Context) {
+	userIDStr := c.Param("userId")
+	levelNumberStr := c.Param("number")
+	
+	userID, err := strconv.ParseUint(userIDStr, 10, 32)
+	if err != nil {
+		h.sendError(c, http.StatusBadRequest, "Invalid user ID", err)
+		return
+	}
+
+	levelNumber, err := strconv.Atoi(levelNumberStr)
+	if err != nil {
+		h.sendError(c, http.StatusBadRequest, "Invalid level number", err)
+		return
+	}
+
+	levelDetails, err := h.repository.GetLevelDetailsByNumber(uint(userID), levelNumber)
+	if err != nil {
+		h.sendError(c, http.StatusNotFound, "Level details not found", err)
+		return
+	}
+
+	h.sendSuccess(c, "Level details retrieved successfully", levelDetails)
+}
+
+// GetGameData godoc
+// @Summary      Get game data
+// @Description  Retrieves comprehensive game data for a user including progress and rewards
+// @Tags         Game
+// @Produce      json
+// @Param        userId path int true "User ID"
+// @Success      200 {object} Response
+// @Failure      400 {object} Response
+// @Failure      500 {object} Response
+// @Router       /game/data/{userId} [get]
+func (h *PlantHandler) GetGameData(c *gin.Context) {
+	userIDStr := c.Param("userId")
+	
+	userID, err := strconv.ParseUint(userIDStr, 10, 32)
+	if err != nil {
+		h.sendError(c, http.StatusBadRequest, "Invalid user ID", err)
+		return
+	}
+
+	gameData, err := h.repository.GetGameData(uint(userID))
+	if err != nil {
+		h.sendError(c, http.StatusInternalServerError, "Failed to retrieve game data", err)
+		return
+	}
+
+	h.sendSuccess(c, "Game data retrieved successfully", gameData)
+}
+
+// HealthCheck godoc
+// @Summary      Health check
+// @Description  Returns the health status of the service
+// @Tags         System
+// @Produce      json
+// @Success      200 {object} Response
+// @Failure      500 {object} Response
+// @Router       /plant/health [get]
+func (h *PlantHandler) HealthCheck(c *gin.Context) {
+	// Get total levels count
+	count, err := h.repository.GetLevelsCount()
+	if err != nil {
+		h.sendError(c, http.StatusInternalServerError, "Health check failed", err)
+		return
+	}
+
+	healthData := map[string]interface{}{
+		"status":       "healthy",
+		"timestamp":    time.Now().UTC(),
+		"total_levels": count,
+	}
+
+	h.sendSuccess(c, "Service is healthy", healthData)
 }

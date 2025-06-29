@@ -1,3 +1,4 @@
+// infrastructure/models.go
 package infrastructure
 
 import (
@@ -7,15 +8,14 @@ import (
 
 type Level struct {
 	ID          uint           `json:"id" gorm:"primaryKey" db:"id"`
-	LevelNumber int            `json:"level_number" gorm:"not null;uniqueIndex" db:"level_number"` // new field
+	LevelNumber int            `json:"level_number" gorm:"not null;uniqueIndex" db:"level_number"`
 	Riddle      string         `json:"riddle" gorm:"not null;size:500" db:"riddle"`
 	PlantName   string         `json:"plant_name" gorm:"not null;size:255" db:"plant_name"`
-	Reward      int            `json:"reward" gorm:"not null;default:0" db:"reward"` // reward points as integer
+	Reward      int            `json:"reward" gorm:"not null;default:0" db:"reward"`
 	CreatedAt   time.Time      `json:"created_at" db:"created_at"`
 	UpdatedAt   time.Time      `json:"updated_at" db:"updated_at"`
 	DeletedAt   gorm.DeletedAt `json:"-" gorm:"index"`
 }
-
 
 func (Level) TableName() string {
 	return "levels"
@@ -43,7 +43,7 @@ type UserReward struct {
 	ID           uint      `json:"id" gorm:"primaryKey" db:"id"`
 	UserID       uint      `json:"user_id" gorm:"not null;uniqueIndex" db:"user_id"`
 	TotalRewards int       `json:"total_rewards" gorm:"default:0" db:"total_rewards"`
-	LevelReached int       `json:"level_reached" gorm:"default:1" db:"level_reached"` // highest level reached
+	LevelReached int       `json:"level_reached" gorm:"default:1" db:"level_reached"`
 	CreatedAt    time.Time `json:"created_at" db:"created_at"`
 	UpdatedAt    time.Time `json:"updated_at" db:"updated_at"`
 	DeletedAt    gorm.DeletedAt `json:"-" gorm:"index"`
