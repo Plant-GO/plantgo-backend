@@ -197,12 +197,15 @@ definitions:
   infrastructure.User:
     properties:
       android_id:
+        description: Add unique index
         type: string
       created_at:
         type: string
       email:
+        description: Make nullable
         type: string
       google_id:
+        description: Add unique index
         type: string
       id:
         type: integer
@@ -525,7 +528,7 @@ paths:
       - application/json
       description: Creates a new user with username, email, and password
       parameters:
-      - description: infrastructure.User registration info
+      - description: User registration info
         in: body
         name: request
         required: true

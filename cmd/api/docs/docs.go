@@ -495,7 +495,7 @@ const docTemplate = `{
                 "summary": "Register a new user",
                 "parameters": [
                     {
-                        "description": "infrastructure.User registration info",
+                        "description": "User registration info",
                         "name": "request",
                         "in": "body",
                         "required": true,
@@ -1142,15 +1142,18 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "android_id": {
+                    "description": "Add unique index",
                     "type": "string"
                 },
                 "created_at": {
                     "type": "string"
                 },
                 "email": {
+                    "description": "Make nullable",
                     "type": "string"
                 },
                 "google_id": {
+                    "description": "Add unique index",
                     "type": "string"
                 },
                 "id": {

@@ -6,14 +6,16 @@ import (
 )
 
 type Level struct {
-	ID        uint      `json:"id" gorm:"primaryKey" db:"id"`
-	Riddle    string    `json:"riddle" gorm:"not null;size:500" db:"riddle"`
-	PlantName string    `json:"plant_name" gorm:"not null;size:255" db:"plant_name"`
-	Reward    int       `json:"reward" gorm:"not null;default:0" db:"reward"` // reward points as integer
-	CreatedAt time.Time `json:"created_at" db:"created_at"`
-	UpdatedAt time.Time `json:"updated_at" db:"updated_at"`
-	DeletedAt gorm.DeletedAt `json:"-" gorm:"index"`
+	ID          uint           `json:"id" gorm:"primaryKey" db:"id"`
+	LevelNumber int            `json:"level_number" gorm:"not null;uniqueIndex" db:"level_number"` // new field
+	Riddle      string         `json:"riddle" gorm:"not null;size:500" db:"riddle"`
+	PlantName   string         `json:"plant_name" gorm:"not null;size:255" db:"plant_name"`
+	Reward      int            `json:"reward" gorm:"not null;default:0" db:"reward"` // reward points as integer
+	CreatedAt   time.Time      `json:"created_at" db:"created_at"`
+	UpdatedAt   time.Time      `json:"updated_at" db:"updated_at"`
+	DeletedAt   gorm.DeletedAt `json:"-" gorm:"index"`
 }
+
 
 func (Level) TableName() string {
 	return "levels"

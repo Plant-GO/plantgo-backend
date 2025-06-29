@@ -59,10 +59,12 @@ func (s *AuthService) GuestLoginHandler(c *gin.Context) {
 		}
 	} else {
 		user = &infrastructure.User{
-			AndroidID:  &req.AndroidID,
-			Username:   req.Username,
-			CreatedAt:  time.Now().UTC(),
-			UpdatedAt:  time.Now().UTC(),
+			AndroidID:    &req.AndroidID,
+			Username:     req.Username,
+			Email:        nil, // Explicitly set to nil for guest users
+			PasswordHash: nil, // Explicitly set to nil for guest users
+			CreatedAt:    time.Now().UTC(),
+			UpdatedAt:    time.Now().UTC(),
 		}
 
 		if err := s.userRepo.CreateUser(user); err != nil {
@@ -129,11 +131,12 @@ func (s *AuthService) GoogleCallbackHandler(c *gin.Context) {
 	username := userInfo["name"].(string)
 
 	user := &infrastructure.User{
-		GoogleID:  &googleID,
-		Email:     email,
-		Username:  username,
-		CreatedAt: time.Now().UTC(),
-		UpdatedAt: time.Now().UTC(),
+		GoogleID:     &googleID,
+		Email:        &email, // Use pointer to string
+		Username:     username,
+		PasswordHash: nil, // Google users don't have password
+		CreatedAt:    time.Now().UTC(),
+		UpdatedAt:    time.Now().UTC(),
 	}
 
 	// Create or update user in database
@@ -158,7 +161,7 @@ func (s *AuthService) GoogleCallbackHandler(c *gin.Context) {
 // @Tags         Auth
 // @Accept       json
 // @Produce      json
-// @Param        request body dto.RegisterRequest true "infrastructure.User registration info"
+// @Param        request body dto.RegisterRequest true "User registration info"
 // @Success      201 {object} dto.AuthResponse
 // @Failure      400 {object} dto.ErrorResponse
 // @Failure      409 {object} dto.ErrorResponse
@@ -173,7 +176,7 @@ func (s *AuthService) RegisterHandler(c *gin.Context) {
 	}
 
 	if _, exists := s.userRepo.UserExists(req.Email, ""); exists {
-		c.JSON(http.StatusConflict, gin.H{"error": "infrastructure.User with this email already exists"})
+		c.JSON(http.StatusConflict, gin.H{"error": "User with this email already exists"})
 		return
 	}
 
@@ -185,8 +188,8 @@ func (s *AuthService) RegisterHandler(c *gin.Context) {
 
 	user := &infrastructure.User{
 		Username:     req.Username,
-		Email:        req.Email,
-		PasswordHash: hashedPassword,
+		Email:        &req.Email, // Use pointer to string
+		PasswordHash: &hashedPassword, // Use pointer to string
 		CreatedAt:    time.Now().UTC(),
 		UpdatedAt:    time.Now().UTC(),
 	}
@@ -218,8 +221,6 @@ func (s *AuthService) RegisterHandler(c *gin.Context) {
 // @Failure      500 {object} dto.ErrorResponse
 // @Router       /auth/login [post]
 func (s *AuthService) LoginHandler(c *gin.Context) {
-    // Login handler for email/password authentication
-
 	var req dto.LoginRequest
 
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -233,8 +234,14 @@ func (s *AuthService) LoginHandler(c *gin.Context) {
 		return
 	}
 
+	// Check if user has a password (not a guest or OAuth user)
+	if user.PasswordHash == nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid credentials"})
+		return
+	}
+
 	// Verify password 
-	if !verifyPassword(req.Password, user.PasswordHash) {
+	if !verifyPassword(req.Password, *user.PasswordHash) {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid credentials"})
 		return
 	}
@@ -259,7 +266,6 @@ func (s *AuthService) LoginHandler(c *gin.Context) {
 // @Failure      404 {object} dto.ErrorResponse
 // @Router       /profile [get]
 func (s *AuthService) GetProfileHandler(c *gin.Context) {
-    // Get user profile
 	userID, exists := c.Get("userID")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
@@ -282,9 +288,14 @@ func (s *AuthService) GetProfileHandler(c *gin.Context) {
 }
 
 func generateJWT(user infrastructure.User) (string, error) {
+	var email string
+	if user.Email != nil {
+		email = *user.Email
+	}
+
 	claims := jwt.MapClaims{
 		"sub":      user.ID,
-		"email":    user.Email,
+		"email":    email,
 		"username": user.Username,
 		"exp":      time.Now().Add(24 * time.Hour).Unix(),
 	}

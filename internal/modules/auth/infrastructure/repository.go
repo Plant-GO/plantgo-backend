@@ -80,14 +80,17 @@ func (r *UserRepository) GetAllUsers(limit, offset int) ([]User, error) {
 	return users, err
 }
 
-func (r *UserRepository) UserExists(email, googleID string) (*User, bool) {
+// Fixed UserExists method to handle Android ID and nullable email
+func (r *UserRepository) UserExists(email, androidID string) (*User, bool) {
 	var user User
 	var err error
 	
-	if googleID != "" {
-		err = r.db.Where("google_id = ?", googleID).First(&user).Error
+	if androidID != "" {
+		err = r.db.Where("android_id = ?", androidID).First(&user).Error
 	} else if email != "" {
 		err = r.db.Where("email = ?", email).First(&user).Error
+	} else {
+		return nil, false
 	}
 	
 	if err != nil {
@@ -97,14 +100,16 @@ func (r *UserRepository) UserExists(email, googleID string) (*User, bool) {
 }
 
 func (r *UserRepository) CreateOrUpdateUser(user *User) (*User, error) {
-	// Check if user exists by Google ID or email
+	// Check if user exists by Google ID, Android ID, or email
 	var existingUser User
 	var err error
 	
 	if user.GoogleID != nil && *user.GoogleID != "" {
 		err = r.db.Where("google_id = ?", *user.GoogleID).First(&existingUser).Error
-	} else if user.Email != "" {
-		err = r.db.Where("email = ?", user.Email).First(&existingUser).Error
+	} else if user.AndroidID != nil && *user.AndroidID != "" {
+		err = r.db.Where("android_id = ?", *user.AndroidID).First(&existingUser).Error
+	} else if user.Email != nil && *user.Email != "" {
+		err = r.db.Where("email = ?", *user.Email).First(&existingUser).Error
 	}
 	
 	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
@@ -121,12 +126,17 @@ func (r *UserRepository) CreateOrUpdateUser(user *User) (*User, error) {
 	
 	// User exists, update
 	existingUser.Username = user.Username
-	existingUser.Email = user.Email
+	if user.Email != nil && *user.Email != "" {
+		existingUser.Email = user.Email
+	}
 	if user.AndroidID != nil {
 		existingUser.AndroidID = user.AndroidID
 	}
 	if user.GoogleID != nil {
 		existingUser.GoogleID = user.GoogleID
+	}
+	if user.PasswordHash != nil {
+		existingUser.PasswordHash = user.PasswordHash
 	}
 	
 	if err := r.db.Save(&existingUser).Error; err != nil {
