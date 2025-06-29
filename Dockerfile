@@ -1,3 +1,4 @@
+# Build stage (Go app)
 FROM golang:1.24.3-alpine AS build
 
 WORKDIR /app
@@ -9,10 +10,20 @@ COPY . .
 
 RUN go build -o main cmd/api/main.go
 
-FROM alpine:3.20.1 AS prod
+# Prod stage (Debian-based with Python)
+FROM python:3.11-slim AS prod
+
 WORKDIR /app
-COPY --from=build /app/main /app/main
+
+# Install TensorFlow and Pillow
+RUN pip install --no-cache-dir tensorflow pillow
+
+# Copy the Go binary from the build stage
+COPY --from=build /app/main .
+
+# Copy Python scripts and models
+COPY ml/ ./ml
+
 EXPOSE ${PORT}
+
 CMD ["./main"]
-
-
