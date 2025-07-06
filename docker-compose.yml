@@ -20,9 +20,15 @@ services:
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
       GOOGLE_REDIRECT_URL: ${GOOGLE_REDIRECT_URL}
       JWT_SECRET: ${JWT_SECRET}
+      FIREBASE_CREDENTIALS_PATH: ${FIREBASE_CREDENTIALS_PATH}
+      FIREBASE_PROJECT_ID: ${FIREBASE_PROJECT_ID}
+      NOTIFICATION_ENABLED: ${NOTIFICATION_ENABLED}
+      PUSH_NOTIFICATION_ENABLED: ${PUSH_NOTIFICATION_ENABLED}
     depends_on:
       plantgo_postgres:
         condition: service_healthy
+    volumes:
+      - ./plantgodemo-firebase-adminsdk-fbsvc-8156241bc0.json:/app/plantgodemo-firebase-adminsdk-fbsvc-8156241bc0.json:ro
     networks:
       - blueprint
   plantgo_postgres:

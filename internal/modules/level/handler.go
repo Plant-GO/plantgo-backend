@@ -2,6 +2,7 @@
 package level
 
 import (
+	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -9,15 +10,18 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"plantgo-backend/internal/modules/level/infrastructure"
+	"plantgo-backend/internal/modules/notification"
 )
 
 type PlantHandler struct {
-	repository *infrastructure.PlantRepository
+	repository          *infrastructure.PlantRepository
+	notificationService *notification.NotificationService
 }
 
-func NewPlantHandler(repository *infrastructure.PlantRepository) *PlantHandler {
+func NewPlantHandler(repository *infrastructure.PlantRepository, notificationService *notification.NotificationService) *PlantHandler {
 	return &PlantHandler{
-		repository: repository,
+		repository:          repository,
+		notificationService: notificationService,
 	}
 }
 
@@ -382,6 +386,19 @@ func (h *PlantHandler) CompleteLevel(c *gin.Context) {
 		return
 	}
 
+	// Generate notification for level completion
+	if h.notificationService != nil {
+		err := h.notificationService.GenerateLevelCompleteNotification(
+			req.UserID,
+			level.LevelNumber,
+			level.Reward,
+		)
+		if err != nil {
+			// Log error but don't fail the request
+			log.Printf("Failed to generate level completion notification: %v", err)
+		}
+	}
+
 	responseData := map[string]interface{}{
 		"user_id":      req.UserID,
 		"level_id":     req.LevelID,
@@ -434,6 +451,19 @@ func (h *PlantHandler) CompleteLevelByNumber(c *gin.Context) {
 	if err := h.repository.CompleteLevel(req.UserID, level.ID); err != nil {
 		h.sendError(c, http.StatusInternalServerError, "Failed to complete level", err)
 		return
+	}
+
+	// Generate notification for level completion
+	if h.notificationService != nil {
+		err := h.notificationService.GenerateLevelCompleteNotification(
+			req.UserID,
+			level.LevelNumber,
+			level.Reward,
+		)
+		if err != nil {
+			// Log error but don't fail the request
+			log.Printf("Failed to generate level completion notification: %v", err)
+		}
 	}
 
 	responseData := map[string]interface{}{

@@ -14,13 +14,15 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
+	"plantgo-backend/internal/modules/notification"
 )
 
 type ScanService struct {
-	upgrader websocket.Upgrader
+	upgrader            websocket.Upgrader
+	notificationService *notification.NotificationService
 }
 
-func NewScanService() *ScanService {
+func NewScanService(notificationService *notification.NotificationService) *ScanService {
 	return &ScanService{
 		upgrader: websocket.Upgrader{
 			CheckOrigin: func(r *http.Request) bool {
@@ -30,6 +32,7 @@ func NewScanService() *ScanService {
 			ReadBufferSize:  1024,
 			WriteBufferSize: 1024,
 		},
+		notificationService: notificationService,
 	}
 }
 
@@ -58,6 +61,18 @@ type PredictionResult struct {
 // @Failure      500 {object} map[string]string
 // @Router       /scan/image [post]
 func (s *ScanService) ScanImageHandler(c *gin.Context) {
+	// Get user ID from query parameter
+	userIDStr := c.Query("user_id")
+	var userID uint64
+	if userIDStr != "" {
+		var err error
+		userID, err = strconv.ParseUint(userIDStr, 10, 32)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
+			return
+		}
+	}
+
 	file, err := c.FormFile("file")
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "No file uploaded"})
@@ -80,6 +95,18 @@ func (s *ScanService) ScanImageHandler(c *gin.Context) {
 
 	base64Str := base64.StdEncoding.EncodeToString(fileBytes)
 	result := s.processFrame(base64Str)
+
+	// Generate notification for plant identification (if user is logged in and confidence is high)
+	if userID > 0 && s.notificationService != nil && result.Confidence > 0.7 {
+		err := s.notificationService.GeneratePlantIdentifiedNotification(
+			uint(userID),
+			result.Prediction,
+			result.Confidence,
+		)
+		if err != nil {
+			log.Printf("Failed to generate plant identification notification: %v", err)
+		}
+	}
 
 	c.JSON(http.StatusOK, gin.H{
 		"status":     "processed",

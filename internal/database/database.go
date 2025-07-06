@@ -15,6 +15,7 @@ import (
 	"gorm.io/gorm"
 	authinfra "plantgo-backend/internal/modules/auth/infrastructure"
 	levelinfra "plantgo-backend/internal/modules/level/infrastructure"
+	notificationinfra "plantgo-backend/internal/modules/notification/infrastructure"
 )
 
 type Service interface {
@@ -78,6 +79,9 @@ func NewGormDB() *gorm.DB {
 		levelinfra.Level{},
 		levelinfra.UserLevelProgress{},
 		levelinfra.UserReward{},
+		notificationinfra.Notification{},
+		notificationinfra.UserNotificationPreference{},
+		notificationinfra.UserFCMToken{},
 	)
 
 	if err != nil {

@@ -1,6 +1,7 @@
 package server
 
 import (
+	"log"
 	"net/http"
 
 	"github.com/gin-contrib/cors"
@@ -12,6 +13,8 @@ import (
 	"plantgo-backend/internal/modules/auth"
 	"plantgo-backend/internal/modules/level"
 	"plantgo-backend/internal/modules/level/infrastructure"
+	"plantgo-backend/internal/modules/notification"
+	notificationinfra "plantgo-backend/internal/modules/notification/infrastructure"
 	"plantgo-backend/internal/modules/plant"
 )
 
@@ -33,22 +36,78 @@ func (s *Server) RegisterRoutes() http.Handler {
 
 	// Initialize services and handlers
 	authService := auth.NewAuthService(database.NewGormDB())
-	scanService := plant.NewScanService()
 	
-	// Initialize PlantHandler with repository
+	// Initialize repositories
 	plantRepository := infrastructure.NewPlantRepository(database.NewGormDB())
-	plantHandler := level.NewPlantHandler(plantRepository)
+	notificationRepository := notificationinfra.NewNotificationRepository(database.NewGormDB())
+	
+	// Initialize Firebase service
+	firebaseService, err := notification.NewFirebaseService(notificationRepository)
+	if err != nil {
+		log.Printf("Failed to initialize Firebase service: %v", err)
+		// Continue without Firebase service - notifications will still work but without push notifications
+		firebaseService = nil
+	}
+	
+	// Initialize services
+	notificationService := notification.NewNotificationService(notificationRepository, firebaseService)
+	scanService := plant.NewScanService(notificationService)
+	
+	// Initialize handlers
+	plantHandler := level.NewPlantHandler(plantRepository, notificationService)
+	notificationHandler := notification.NewNotificationHandler(notificationService)
 
+	// API v1 routes
+	api := r.Group("/api/v1")
+	
 	// Auth routes
-	r.GET("/auth/google/login", authService.GoogleLoginHandler)
-	r.GET("/auth/google/callback", authService.GoogleCallbackHandler)
-	r.POST("/auth/guest/login", authService.GuestLoginHandler)
-	r.POST("/auth/register", authService.RegisterHandler)
-	r.POST("/auth/login", authService.LoginHandler)
+	authGroup := api.Group("/auth")
+	{
+		authGroup.POST("/guest", authService.GuestLoginHandler)
+		authGroup.POST("/google", authService.GoogleLoginHandler)
+		authGroup.POST("/google/callback", authService.GoogleCallbackHandler)
+		authGroup.POST("/register", authService.RegisterHandler)
+		authGroup.POST("/login", authService.LoginHandler)
+		authGroup.GET("/profile", authService.GetProfileHandler)
+	}
 
-	// Scan routes
-	r.POST("/scan/image", scanService.ScanImageHandler)
-	r.GET("/scan/video", scanService.ScanVideoHandler)
+	// Plant/Level routes
+	levelGroup := api.Group("/levels")
+	{
+		levelGroup.GET("/", plantHandler.GetAllLevels)
+		levelGroup.GET("/:id", plantHandler.GetLevel)
+		levelGroup.GET("/number/:number", plantHandler.GetLevelByNumber)
+		levelGroup.POST("/complete", plantHandler.CompleteLevel)
+		levelGroup.POST("/complete-by-number", plantHandler.CompleteLevelByNumber)
+		levelGroup.GET("/user/:userId/progress", plantHandler.GetUserProgress)
+		levelGroup.GET("/user/:userId/completed", plantHandler.GetCompletedLevels)
+		levelGroup.GET("/user/:userId/reward", plantHandler.GetUserReward)
+		levelGroup.GET("/details/:id", plantHandler.GetLevelDetails)
+		levelGroup.GET("/game-data", plantHandler.GetGameData)
+		levelGroup.POST("/", plantHandler.CreateLevel)
+		levelGroup.PUT("/:id", plantHandler.UpdateLevel)
+		levelGroup.DELETE("/:id", plantHandler.DeleteLevel)
+	}
+
+	// Plant scanning routes
+	plantGroup := api.Group("/plants")
+	{
+		plantGroup.POST("/scan", scanService.ScanImageHandler)
+	}
+
+	// Notification routes
+	notificationGroup := api.Group("/notifications")
+	{
+		notificationGroup.GET("/:userId", notificationHandler.GetUserNotifications)
+		notificationGroup.GET("/:userId/unread", notificationHandler.GetUnreadNotifications)
+		notificationGroup.GET("/:userId/unread/count", notificationHandler.GetUnreadCount)
+		notificationGroup.PUT("/:id/read", notificationHandler.MarkAsRead)
+		notificationGroup.PUT("/:userId/read-all", notificationHandler.MarkAllAsRead)
+		notificationGroup.DELETE("/:id", notificationHandler.DeleteNotification)
+		notificationGroup.POST("/fcm-token", notificationHandler.UpdateFCMToken)
+		notificationGroup.GET("/:userId/preferences", notificationHandler.GetUserPreferences)
+		notificationGroup.PUT("/:userId/preferences", notificationHandler.UpdateUserPreferences)
+	}
 
 	// Protected routes
 	authorized := r.Group("/")
@@ -84,6 +143,20 @@ func (s *Server) RegisterRoutes() http.Handler {
 			adminGroup.POST("/levels", plantHandler.CreateLevel)
 			adminGroup.PUT("/levels/:id", plantHandler.UpdateLevel)
 			adminGroup.DELETE("/levels/:id", plantHandler.DeleteLevel)
+		}
+
+		// Notification routes
+		notificationGroup := authorized.Group("/notifications")
+		{
+			notificationGroup.GET("/:userId", notificationHandler.GetUserNotifications)
+			notificationGroup.GET("/:userId/unread", notificationHandler.GetUnreadNotifications)
+			notificationGroup.GET("/:userId/count", notificationHandler.GetUnreadCount)
+			notificationGroup.PUT("/:id/read", notificationHandler.MarkAsRead)
+			notificationGroup.PUT("/:userId/read-all", notificationHandler.MarkAllAsRead)
+			notificationGroup.DELETE("/:id", notificationHandler.DeleteNotification)
+			notificationGroup.POST("/fcm-token", notificationHandler.UpdateFCMToken)
+			notificationGroup.GET("/:userId/preferences", notificationHandler.GetUserPreferences)
+			notificationGroup.PUT("/:userId/preferences", notificationHandler.UpdateUserPreferences)
 		}
 	}
 
